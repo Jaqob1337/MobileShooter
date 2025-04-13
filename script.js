@@ -66,7 +66,7 @@ let isDraggingJoystick = false;
 let joystickTouchId = null;
 let joystickBaseX = 0; // Position relative to game container
 let joystickBaseY = 0;
-let joystickRadius = 60; // Fixed radius of the joystick area (half of container width)
+let joystickRadius = 60; // Fixed radius of the joystick area (half of container width: 120px / 2)
 let moveVector = { x: 0, y: 0 }; // Stores the normalized movement direction [-1, 1]
 
 // --- Helper Functions ---
@@ -125,7 +125,6 @@ function initGame() {
     joystickTouchId = null;
     moveVector = { x: 0, y: 0 };
     joystickContainer.style.display = 'none'; // Ensure hidden
-    // Reset handle position visually (might not be needed if always hidden first)
     joystickHandle.style.left = '50%';
     joystickHandle.style.top = '50%';
 
@@ -139,7 +138,12 @@ function initGame() {
         });
     }
 
-    updateCamera(); // Center camera
+    // Initial Camera Position (needed before first draw)
+    camera.x = player.worldX - camera.width / 2;
+    camera.y = player.worldY - camera.height / 2;
+    camera.x = Math.max(0, Math.min(WORLD_WIDTH - camera.width, camera.x));
+    camera.y = Math.max(0, Math.min(WORLD_HEIGHT - camera.height, camera.y));
+
 
     scoreElement.textContent = score;
     healthElement.textContent = player.health;
@@ -150,6 +154,8 @@ function initGame() {
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
     }
+    // Get initial canvas dimensions relative to viewport AFTER DOM is ready
+    canvasRect = canvas.getBoundingClientRect();
     gameLoop();
 }
 
@@ -398,9 +404,9 @@ function updateEnemies(deltaTime) {
 }
 
 function updateParticles(deltaTime) {
-     const speedMultiplier = PARTICLE_SPEED * deltaTime; // Use defined particle speed
+     // Particle velocity already includes speed, just apply based on time
     particles = particles.filter(p => {
-        p.worldX += p.velocityX * deltaTime; // Apply velocity directly based on speed * direction
+        p.worldX += p.velocityX * deltaTime;
         p.worldY += p.velocityY * deltaTime;
         p.life -= deltaTime;
         p.radius *= (1 - 0.8 * deltaTime); // Shrink particles faster
@@ -419,7 +425,7 @@ function spawnParticles(x, y, color) {
             radius: random(1.5, 4.5), // Slightly larger particles
             color: color,
             life: PARTICLE_LIFESPAN * (0.7 + Math.random() * 0.6),
-            initialLife: PARTICLE_LIFESPAN
+            initialLife: PARTICLE_LIFESPAN // Store initial life for fading calculation
         });
     }
 }
@@ -521,8 +527,8 @@ function gameLoop(timestamp = 0) {
     drawParticles();
     drawEnemies();
     drawProjectiles();
-    // Only draw player if alive
-    if (player.health > 0 || !gameOverScreen.style.display || gameOverScreen.style.display === 'none') {
+    // Only draw player if alive or game not yet officially over (for fade effects)
+    if (player.health > 0 || gameRunning) {
          drawPlayer();
     }
 
@@ -537,44 +543,39 @@ window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
 // --- Joystick Touch Listeners (Attach to the *canvas*) ---
 
-// Get canvas offset relative to viewport
+// Get canvas offset relative to viewport (declare outside to avoid re-querying constantly)
 let canvasRect = canvas.getBoundingClientRect();
 window.addEventListener('resize', () => {
      canvasRect = canvas.getBoundingClientRect();
      // Recalculate joystickRadius if it's dynamic based on size
-     // joystickRadius = joystickContainer.offsetWidth / 2; // If using offsetWidth
+     // joystickRadius = joystickContainer.offsetWidth / 2; // Example if using CSS size
 });
 
 
 canvas.addEventListener('touchstart', (e) => {
     if (!gameRunning) return; // Don't start joystick if game over
-    // Allow starting joystick even if already dragging (handles multi-touch issues)
-    // if (isDraggingJoystick) return;
 
     e.preventDefault();
     const touch = e.changedTouches[0];
 
     // Check if touch is within joystick activation area (e.g., bottom half of screen)
-    // This prevents accidental joystick activation when tapping elsewhere
     const touchYRelative = touch.clientY - canvasRect.top;
     if (touchYRelative < canvas.height / 2) { // Example: Only allow in bottom half
-       // console.log("Touch too high for joystick");
-        return;
+        return; // Ignore touches in the top half
     }
 
-
-    // Store the ID of the touch controlling the joystick
+    // A new touch starts the joystick, even if another was ongoing
     joystickTouchId = touch.identifier;
 
     // Calculate joystick base center position relative to the canvas top-left
     const touchXRelative = touch.clientX - canvasRect.left;
-    // const touchYRelative = touch.clientY - canvasRect.top; // Already calculated
 
     // Set base position for internal calculations (relative to canvas)
     joystickBaseX = touchXRelative;
-    joystickBaseY = touchYRelative;
+    joystickBaseY = touchYRelative; // Use the already calculated value
 
     // Position the container visually (CSS left/top are relative to parent #game-container)
+    // The container's transform: translate(-50%, -50%) centers it on this point
     joystickContainer.style.left = `${joystickBaseX}px`;
     joystickContainer.style.top = `${joystickBaseY}px`;
 
@@ -589,16 +590,20 @@ canvas.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 canvas.addEventListener('touchmove', (e) => {
-    if (!gameRunning || !isDraggingJoystick) return;
+    // Only process if the joystick drag was initiated and game is running
+    if (!gameRunning || !isDraggingJoystick || joystickTouchId === null) return;
     e.preventDefault();
 
     let controllingTouch = null;
+    // Find the specific touch that initiated the joystick drag
     for (let i = 0; i < e.changedTouches.length; i++) {
         if (e.changedTouches[i].identifier === joystickTouchId) {
             controllingTouch = e.changedTouches[i];
             break;
         }
     }
+
+    // If the controlling touch wasn't found in this event batch, ignore
     if (!controllingTouch) return;
 
     // Calculate current touch position relative to canvas top-left
@@ -612,36 +617,59 @@ canvas.addEventListener('touchmove', (e) => {
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     const angle = Math.atan2(deltaY, deltaX);
 
-    // Clamp the distance to the joystick radius
-    const clampedDistance = Math.min(distance, joystickRadius);
+    // Define the dead zone radius
+    const deadZone = 10; // Adjust if needed
 
-    // Calculate the handle's position relative to the base center (0,0)
-    const handleX = Math.cos(angle) * clampedDistance;
-    const handleY = Math.sin(angle) * clampedDistance;
+    // --- Refined Logic ---
+    let currentMoveX = 0;
+    let currentMoveY = 0;
+    let handleOffsetX = 0;
+    let handleOffsetY = 0;
+
+    // Only calculate movement if outside the dead zone
+    if (distance > deadZone) {
+        // Clamp the distance to the joystick radius for handle positioning
+        const clampedDistance = Math.min(distance, joystickRadius);
+
+        // Calculate the visual handle's offset from the base center
+        handleOffsetX = Math.cos(angle) * clampedDistance;
+        handleOffsetY = Math.sin(angle) * clampedDistance;
+
+        // Calculate the normalized movement vector's magnitude based on distance relative to radius
+        const normalizedMagnitude = Math.min(1, (distance - deadZone) / (joystickRadius - deadZone)); // Scale from 0 to 1 between deadzone and edge
+
+        // Apply magnitude to the direction vector
+        currentMoveX = Math.cos(angle) * normalizedMagnitude;
+        currentMoveY = Math.sin(angle) * normalizedMagnitude;
+
+    } else {
+        // Inside deadzone - no movement, handle stays centered visually (relative to base)
+        handleOffsetX = 0;
+        handleOffsetY = 0;
+        currentMoveX = 0;
+        currentMoveY = 0;
+    }
 
     // Update the visual handle position (relative to the container center)
     // CSS % is relative to container size, px offset from that center
-    joystickHandle.style.left = `calc(50% + ${handleX}px)`;
-    joystickHandle.style.top = `calc(50% + ${handleY}px)`;
+    joystickHandle.style.left = `calc(50% + ${handleOffsetX}px)`;
+    joystickHandle.style.top = `calc(50% + ${handleOffsetY}px)`;
 
-    // Update the movement vector (normalized)
-    const deadZone = 5; // Pixels
-    if (distance > deadZone) {
-        // Normalize the clamped vector for consistent speed
-        moveVector.x = handleX / joystickRadius; // Use clamped position for magnitude
-        moveVector.y = handleY / joystickRadius;
-    } else {
-        moveVector.x = 0;
-        moveVector.y = 0;
-    }
+    // Update the actual movement vector used by the player
+    moveVector.x = currentMoveX;
+    moveVector.y = currentMoveY;
+    // --- End Refined Logic ---
+
 
 }, { passive: false });
 
 // Function to handle end/cancel for joystick touch
 const handleJoystickEnd = (e) => {
-    if (!isDraggingJoystick) return;
+    // Only act if a joystick drag was in progress
+    if (!isDraggingJoystick || joystickTouchId === null) return;
 
     let isJoystickTouchEnded = false;
+    // Check if the specific touch that initiated the drag is ending
     for (let i = 0; i < e.changedTouches.length; i++) {
         if (e.changedTouches[i].identifier === joystickTouchId) {
             isJoystickTouchEnded = true;
@@ -651,10 +679,10 @@ const handleJoystickEnd = (e) => {
 
     if (isJoystickTouchEnded) {
         isDraggingJoystick = false;
-        joystickTouchId = null;
+        joystickTouchId = null; // Clear the controlling touch ID
         joystickContainer.style.display = 'none'; // Hide joystick
         moveVector = { x: 0, y: 0 }; // Stop movement
-         // Optional: Animate handle back to center? CSS transition can handle this partly.
+        // Reset handle position visually
         joystickHandle.style.left = '50%';
         joystickHandle.style.top = '50%';
     }
@@ -675,4 +703,7 @@ restartButton.addEventListener('touchend', (e) => {
 });
 
 // --- Start Game ---
-initGame(); // Initialize and start the game loop
+// Ensure the DOM is ready before getting canvasRect and starting the game
+// The 'defer' attribute handles this for the initial load.
+// If dynamically adding the canvas, you'd wrap initGame in a 'DOMContentLoaded' listener.
+initGame();
