@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Survivor Clone - Enhanced</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Mobile Survivor</h1>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="700"></canvas>
+        <!-- Add Screen Flash Div -->
+        <div id="screenFlash"></div>
+        <div id="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div>Health: <span id="health">100</span></div>
+        </div>
+        <div id="gameOverScreen" style="display: none;">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button id="restartButton">Restart</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

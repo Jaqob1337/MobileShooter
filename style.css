@@ -1,0 +1,163 @@
+/* Add basic reset and mobile focus */
+* {
+    box-sizing: border-box;
+    user-select: none; /* Prevent text selection */
+    -webkit-user-select: none;
+    -webkit-touch-callout: none; /* Disable callout sheet */
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
+}
+
+html, body {
+    overscroll-behavior: none; /* Prevent pull-to-refresh/bounce */
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden; /* Prevent body scrolling */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Nicer font */
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Align game to top */
+    align-items: center;
+    min-height: 100vh; /* Fallback */
+    min-height: 100svh; /* Use smallest viewport height */
+    background-color: #181818; /* Slightly lighter dark background */
+    color: #eee;
+}
+
+h1 {
+    margin-top: 10px;
+    margin-bottom: 5px;
+    color: #fff;
+    font-size: 1.5em;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
+
+#game-container {
+    position: relative;
+    border: 3px solid #555; /* Thicker border */
+    border-radius: 5px; /* Slightly rounded */
+    margin-top: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5); /* Add shadow to container */
+}
+
+#gameCanvas {
+    display: block;
+    background-color: #0a0a0a; /* Very dark canvas */
+    max-width: 100%;
+    max-height: calc(100vh - 80px);
+    object-fit: contain;
+    border-radius: 3px; /* Match container rounding */
+}
+
+#ui {
+    position: absolute;
+    top: 15px; /* More padding */
+    left: 15px;
+    color: white;
+    font-size: 1em;
+    background-color: rgba(20, 20, 20, 0.7); /* Darker UI background */
+    padding: 8px 12px; /* More padding */
+    border-radius: 5px;
+    z-index: 5;
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+#ui div {
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+#ui span {
+    font-weight: bold;
+    color: #66ff66; /* Greenish health/score */
+}
+#ui #health {
+     color: #ff6b6b; /* Reddish health */
+}
+
+
+#gameOverScreen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(145deg, rgba(50, 50, 50, 0.95), rgba(30, 30, 30, 0.95)); /* Gradient background */
+    color: white;
+    padding: 25px 30px;
+    border-radius: 10px;
+    text-align: center;
+    border: 2px solid #aaa; /* Lighter border */
+    z-index: 10;
+    width: 85%;
+    max-width: 320px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+    display: flex; /* Use flex for better alignment */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+
+#gameOverScreen h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #ff8f8f; /* Softer red */
+    font-size: 1.8em;
+    text-shadow: 1px 1px 2px #000;
+}
+#gameOverScreen p {
+    font-size: 1.2em;
+    margin-bottom: 20px;
+}
+#gameOverScreen #finalScore {
+     font-weight: bold;
+     color: #ffff99; /* Yellow score */
+}
+
+#restartButton {
+    padding: 12px 25px;
+    font-size: 1.1em;
+    cursor: pointer;
+    background: linear-gradient(180deg, #66bb6a, #43a047); /* Green gradient */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin-top: 15px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+    box-shadow: 0 3px 5px rgba(0,0,0,0.3);
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+
+#restartButton:hover, #restartButton:focus {
+    background: linear-gradient(180deg, #76c77a, #53b057);
+    outline: none;
+}
+#restartButton:active {
+     transform: scale(0.98);
+     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Hide scrollbars */
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* Optional: Add screen flash effect div */
+#screenFlash {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 0, 0, 0.3); /* Red flash */
+    z-index: 20; /* Above everything */
+    pointer-events: none; /* Allow clicks through */
+    opacity: 0;
+    transition: opacity 0.1s ease-out; /* Smooth fade out */
+}
