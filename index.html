@@ -2,16 +2,38 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Make it responsive and disable zoom -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Survivor Clone - Enhanced</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Mobile Survivor PWA</title>
+
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json"> <!-- Link to your manifest file -->
+    <meta name="theme-color" content="#181818"/> <!-- Match body background -->
+    <meta name="apple-mobile-web-app-capable" content="yes"> <!-- iOS standalone mode -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- iOS status bar style -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png"> <!-- iOS home screen icon -->
+    <!-- Add more apple-touch-icon sizes if needed (e.g., 180x180 for newer iPhones) -->
+    <!-- <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png"> -->
+
+    <link rel="stylesheet" href="style.css"> <!-- Link to your CSS -->
+
+    <!-- Add defer attribute here to ensure DOM is ready before script runs -->
+    <script src="script.js" defer></script> <!-- Link to your JavaScript -->
+
 </head>
 <body>
     <h1>Mobile Survivor</h1>
     <div id="game-container">
         <canvas id="gameCanvas" width="400" height="700"></canvas>
-        <!-- Add Screen Flash Div -->
         <div id="screenFlash"></div>
+
+        <!-- Joystick Elements -->
+        <div id="joystick-container">
+            <div id="joystick-base"></div>
+            <div id="joystick-handle"></div>
+        </div>
+        <!-- End Joystick Elements -->
+
         <div id="ui">
             <div>Score: <span id="score">0</span></div>
             <div>Health: <span id="health">100</span></div>
@@ -23,6 +45,20 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- PWA Service Worker Registration Script -->
+    <!-- This script waits for 'load' event, so it's okay here or at the end -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js') // Path to your service worker file
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
